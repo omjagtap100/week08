@@ -139,3 +139,4 @@ def health_check() -> dict[str, str]:
         "status": "healthy",
         "service": "user-service",
     }# Triggering SIT722 8.1P CI/CD Pipeline
+# Triggering SIT722 8.1P CI/CD Pipeline
