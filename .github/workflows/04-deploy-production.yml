@@ -22,6 +22,11 @@ jobs:
     environment:
       name: production
 
+    env:
+      ACR_SERVER: koalatechomacr847.azurecr.io
+      AKS_CLUSTER: koalatechomaks847
+      AKS_RG: koalatech-week06-ex2-rg
+
     steps:
       - name: Checkout tested commit
         uses: actions/checkout@v4
@@ -36,8 +41,8 @@ jobs:
       - name: Get AKS credentials
         run: |
           az aks get-credentials \
-            --resource-group ${{ vars.AKS_RESOURCE_GROUP }} \
-            --name ${{ vars.AKS_CLUSTER_NAME }} \
+            --resource-group $AKS_RG \
+            --name $AKS_CLUSTER \
             --overwrite-existing
 
       - name: Create production namespace
@@ -77,37 +82,37 @@ jobs:
       - name: Update frontend image
         run: |
           kubectl set image deployment/frontend \
-            frontend=${{ vars.ACR_LOGIN_SERVER }}/koalatech-frontend:${{ github.event.workflow_run.head_sha }} \
+            frontend=$ACR_SERVER/koalatech-frontend:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Update user-service image
         run: |
           kubectl set image deployment/user-service \
-            user-service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-user-service:${{ github.event.workflow_run.head_sha }} \
+            user-service=$ACR_SERVER/koalatech-user-service:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Update student-service image
         run: |
           kubectl set image deployment/student-service \
-            student-service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-student-service:${{ github.event.workflow_run.head_sha }} \
+            student-service=$ACR_SERVER/koalatech-student-service:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Update lecturer-service image
         run: |
           kubectl set image deployment/lecturer-service \
-            lecturer-service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-lecturer-service:${{ github.event.workflow_run.head_sha }} \
+            lecturer-service=$ACR_SERVER/koalatech-lecturer-service:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Update course-service image
         run: |
           kubectl set image deployment/course-service \
-            course-service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-course-service:${{ github.event.workflow_run.head_sha }} \
+            course-service=$ACR_SERVER/koalatech-course-service:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Update enrollment-service image
         run: |
           kubectl set image deployment/enrollment-service \
-            enrollment-service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-enrollment-service:${{ github.event.workflow_run.head_sha }} \
+            enrollment-service=$ACR_SERVER/koalatech-enrollment-service:${{ github.event.workflow_run.head_sha }} \
             -n production
 
       - name: Wait for frontend rollout
