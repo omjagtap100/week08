@@ -144,8 +144,24 @@ jobs:
             -n staging \
             --timeout=300s
 
-      - name: Show staging resources
+      - name: Deploy Prometheus and Grafana Monitoring Stack
         run: |
+          echo "==> Deploying Prometheus and Grafana via Helm into monitoring namespace"
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --set prometheus.service.type=ClusterIP \
+            --set grafana.service.type=ClusterIP \
+            --set grafana.adminPassword="admin" \
+            --wait=false
+
+      - name: Show staging and monitoring resources
+        run: |
+          echo "==> Staging Namespace Resources:"
           kubectl get pods -n staging
           kubectl get services -n staging
           kubectl get pvc -n staging
+          echo "==> Monitoring Namespace Resources:"
+          kubectl get pods,services -n monitoring
