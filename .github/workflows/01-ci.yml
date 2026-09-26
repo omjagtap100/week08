@@ -185,13 +185,13 @@ jobs:
 
       - name: Login to Azure Container Registry
         run: |
-          az acr login --name ${{ vars.ACR_NAME }}
+          az acr login --name ${{ vars.ACR_NAME || 'koalatechomacr847' }}
 
       - name: Build Docker image
         run: |
           docker build \
             --platform linux/amd64 \
-            -t ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }} \
+            -t ${{ vars.ACR_LOGIN_SERVER || 'koalatechomacr847.azurecr.io' }}/${{ matrix.image }}:${{ github.sha }} \
             ./${{ matrix.service }}
 
       - name: Install Docker Scout
@@ -201,14 +201,14 @@ jobs:
       - name: Docker Scout Vulnerability Scan
         run: |
           echo "==> Running Docker Scout CVE scan on ${{ matrix.image }}"
-          docker scout cves --only-severity critical,high ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }} || true
+          docker scout cves --only-severity critical,high ${{ vars.ACR_LOGIN_SERVER || 'koalatechomacr847.azurecr.io' }}/${{ matrix.image }}:${{ github.sha }} || true
 
       - name: Docker Scout Security Recommendations
         run: |
           echo "==> Docker Scout security recommendations for ${{ matrix.image }}"
-          docker scout recommendations ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }} || true
+          docker scout recommendations ${{ vars.ACR_LOGIN_SERVER || 'koalatechomacr847.azurecr.io' }}/${{ matrix.image }}:${{ github.sha }} || true
 
       - name: Push Docker image with commit SHA
         run: |
           docker push \
-            ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ vars.ACR_LOGIN_SERVER || 'koalatechomacr847.azurecr.io' }}/${{ matrix.image }}:${{ github.sha }}
