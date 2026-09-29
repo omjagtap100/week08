@@ -79,11 +79,61 @@ jobs:
           kubectl apply \
             -f kubernetes/production/
 
-      - name: Update frontend image
+      # =====================================================================
+      # Blue-Green release for the frontend (the user-facing entry point).
+      # The idle colour is updated and smoke tested behind frontend-preview
+      # before the live "frontend" Service selector is switched. If the smoke
+      # test fails, the job stops here and the selector is never touched, so
+      # production keeps serving the previous, known-good colour.
+      # =====================================================================
+      - name: Determine live and idle frontend colour
+        id: colour
         run: |
-          kubectl set image deployment/frontend \
+          LIVE_COLOR=$(kubectl get service frontend -n production -o jsonpath='{.spec.selector.color}')
+          if [ -z "$LIVE_COLOR" ]; then LIVE_COLOR=blue; fi
+
+          if [ "$LIVE_COLOR" = "blue" ]; then
+            IDLE_COLOR=green
+          else
+            IDLE_COLOR=blue
+          fi
+
+          echo "Live colour is $LIVE_COLOR, deploying to idle colour $IDLE_COLOR"
+          echo "live=$LIVE_COLOR" >> "$GITHUB_OUTPUT"
+          echo "idle=$IDLE_COLOR" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy new image to idle frontend colour
+        run: |
+          kubectl set image deployment/frontend-${{ steps.colour.outputs.idle }} \
             frontend=$ACR_SERVER/koalatech-frontend:${{ github.event.workflow_run.head_sha }} \
             -n production
+
+          kubectl rollout status deployment/frontend-${{ steps.colour.outputs.idle }} \
+            -n production \
+            --timeout=300s
+
+      - name: Point preview service at idle colour
+        run: |
+          kubectl patch service frontend-preview -n production \
+            --type merge \
+            -p '{"spec":{"selector":{"app":"frontend","color":"${{ steps.colour.outputs.idle }}"}}}'
+
+      - name: Smoke test idle colour before switching production traffic
+        run: |
+          kubectl run smoke-test-${{ github.run_id }} \
+            --rm -i --restart=Never \
+            --image=curlimages/curl:8.10.1 \
+            -n production \
+            --command -- curl --fail --retry 10 --retry-delay 5 --max-time 5 \
+            http://frontend-preview.production.svc.cluster.local
+
+      - name: Switch production traffic to new colour
+        run: |
+          kubectl patch service frontend -n production \
+            --type merge \
+            -p '{"spec":{"selector":{"app":"frontend","color":"${{ steps.colour.outputs.idle }}"}}}'
+
+          echo "Production frontend now served by the ${{ steps.colour.outputs.idle }} deployment"
 
       - name: Update user-service image
         run: |
@@ -114,12 +164,6 @@ jobs:
           kubectl set image deployment/enrollment-service \
             enrollment-service=$ACR_SERVER/koalatech-enrollment-service:${{ github.event.workflow_run.head_sha }} \
             -n production
-
-      - name: Wait for frontend rollout
-        run: |
-          kubectl rollout status deployment/frontend \
-            -n production \
-            --timeout=300s
 
       - name: Wait for user-service rollout
         run: |
@@ -153,6 +197,8 @@ jobs:
 
       - name: Show production resources
         run: |
+          kubectl get pods -n production -l app=frontend --show-labels
+          kubectl get service frontend frontend-preview -n production
           kubectl get pods -n production
           kubectl get services -n production
           kubectl get pvc -n production
