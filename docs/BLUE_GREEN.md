@@ -46,3 +46,34 @@ is a single selector patch back to it:
 kubectl patch service frontend -n production --type merge \
   -p '{"spec":{"selector":{"app":"frontend","color":"blue"}}}'
 ```
+
+## Observing a release in Azure Monitor
+
+The AKS cluster runs the `oms_agent` add-on wired to a dedicated Log
+Analytics workspace (`terraform/monitoring.tf`), i.e. Azure Monitor Container
+Insights. Instead of tailing pod logs by hand during a blue-green switch, run
+these KQL queries in the workspace's **Logs** blade:
+
+Pod restarts for both colours, to confirm the idle colour rolled out cleanly
+before (and stayed stable after) the traffic switch:
+
+```kql
+KubePodInventory
+| where Namespace == "production"
+| where Name startswith "frontend-"
+| summarize RestartCount = max(PodRestartCount) by Name, bin(TimeGenerated, 5m)
+| order by TimeGenerated desc
+```
+
+Pod-level failure events (crash loops, readiness failures) during the same
+window, which is what would have shown a bad release if the smoke test had
+not caught it:
+
+```kql
+KubeEvents
+| where Namespace == "production"
+| where Name startswith "frontend-"
+| where Reason in ("BackOff", "Unhealthy", "Failed")
+| project TimeGenerated, Name, Reason, Message
+| order by TimeGenerated desc
+```

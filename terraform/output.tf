@@ -39,6 +39,11 @@ output "aks_cluster_name" {
   value       = azurerm_kubernetes_cluster.aks.name
 }
 
+output "log_analytics_workspace_name" {
+  description = "Name of the Log Analytics workspace used by AKS Container Insights"
+  value       = azurerm_log_analytics_workspace.law.name
+}
+
 output "aks_get_credentials_command" {
   description = "Azure CLI command used to configure kubectl"
   value = join(" ", [
