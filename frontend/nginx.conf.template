@@ -62,7 +62,7 @@ server {
     }
 
     location / {
-        try_files $uri $uri/ /index.html;
+        return 500;
     }
 
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
